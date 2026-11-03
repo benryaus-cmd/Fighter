@@ -9,7 +9,8 @@
     "preview": "vite preview --host 0.0.0.0",
     "test": "node --experimental-strip-types --test tests/*.test.mjs",
     "predev": "node scripts/unpack-models.mjs",
-    "prebuild": "node scripts/unpack-models.mjs"
+    "prebuild": "node scripts/unpack-models.mjs",
+    "bake:combat": "node scripts/unpack-models.mjs && node scripts/bake-combat.mjs"
   },
   "dependencies": {
     "react": "^19.2.0",

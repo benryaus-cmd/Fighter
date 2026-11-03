@@ -19,3 +19,10 @@ No authored combat animations are embedded in the five uploaded GLBs, and no Kin
 ## Code
 
 Joystick interaction is adapted from the project owner's Aippy-derived React source: https://github.com/benryaus-cmd/Hair-and-Makeup/blob/main/src/ui/Joystick.tsx . The arena, simple fighter AI, procedural fallback models, combat logic and animation posing are original code added for this prototype.
+## Combat animation clips (November 2026)
+
+Downloaded from [KinemIQ's free fighting animation library](https://kinemiq.app/free-fighting-animations/) and retargeted offline to the five supplied rigs. Original skeleton-only clips are preserved in `assets/motion-source/`; the resulting browser-ready GLBs are in `public/animations/`.
+
+- **Quaternius Universal Animation Library**, CC0: `punch_jab`, `punch_cross`, `hit_chest`, `death01`. [Creator and library](https://quaternius.com/packs/universalanimationlibrary.html).
+- **ACCAD / The Ohio State University, Open Motion Project**, CC BY 3.0: `male2_g2_frontkick`, `male2_g3_sidekickleadingright`, `male2_e8_bounce`, `male2_e3_advance`. [Original motion capture collection](https://accad.osu.edu/research/motion-lab/mocap-system-and-data). [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/).
+- KinemIQ supplied the common-skeleton conversions. Changes here: trimmed action windows, removed net horizontal travel, corrected each target's posed bind directions, and baked local rotation/hip tracks for the actual target bone names.

@@ -1,114 +1,97 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import type { MoveState } from './rules';
+import type { MoveState } from './rules.ts';
+import { ATTACKS, totalDuration } from './rules.ts';
+import { restoreBindPose } from '../../scripts/rig-map.mjs';
 import type { FighterVisual } from './ProceduralFighter';
-
-/** Bone names in the supplied VR Avatars, Mixamo, and Blender GLB exports. */
-type Limb = 'leftArm'|'rightArm'|'leftForearm'|'rightForearm'|'leftThigh'|'rightThigh'|'leftCalf'|'rightCalf'|'spine';
-type Joint = { bone: THREE.Bone; rest: THREE.Quaternion; child: THREE.Bone };
-function classifyBone(name: string): Limb | null {
-  const n = name.toLowerCase();
-  if (/collider|_ik_|ctrl_|helper|twist|end_|hair|finger|thumb/.test(n)) return null;
-  const left = /(?:left|j_bip_l_|\.l(?:_|$|\.)|_l_)/.test(n);
-  const right = /(?:right|j_bip_r_|\.r(?:_|$|\.)|_r_)/.test(n);
-  if (/spine|chest/.test(n) && !left && !right) return 'spine';
-  if (!left && !right) return null;
-  const side = left ? 'left' : 'right';
-  if (/lowerarm|forearm|calf|lowerleg/.test(n)) return /calf|lowerleg/.test(n) ? `${side}Calf` as Limb : `${side}Forearm` as Limb;
-  if (/upperarm|(?:^|[:_])(?:left|right)arm|^arm\./.test(n)) return `${side}Arm` as Limb;
-  if (/upperleg|upleg|thigh/.test(n)) return `${side}Thigh` as Limb;
-  if (/^forearm\./.test(n)) return `${side}Forearm` as Limb;
-  return null;
-}
-/** Attach neutral-direction targets to any skinned humanoid with arm/leg bones. */
+/** Real motion clips are retargeted once by scripts/bake-combat.mjs. */
 export async function loadGLBFighter(filename: string): Promise<FighterVisual> {
-  const gltf = await new GLTFLoader().loadAsync(`./models/${filename}`);
-  const root = new THREE.Group(), body = gltf.scene;
-  root.add(body);
-  body.updateWorldMatrix(true, true);
-  const bounds = new THREE.Box3().setFromObject(body);
-  const size = bounds.getSize(new THREE.Vector3());
-  if (bounds.isEmpty() || !Number.isFinite(size.y) || size.y < .01) throw new Error(`Invalid fighter ${filename}`);
-  const center = bounds.getCenter(new THREE.Vector3()), scale = 1.95 / size.y;
-  body.scale.setScalar(scale);
-  body.position.set(-center.x * scale, -bounds.min.y * scale, -center.z * scale);
-  const joints: Partial<Record<Limb, Joint>> = {};
-  body.traverse(o => {
-    if (o instanceof THREE.Mesh) { o.castShadow = true; o.receiveShadow = true; }
-    if (!(o instanceof THREE.Bone)) return;
-    const key = classifyBone(o.name);
-    const child = o.children.find(c => c instanceof THREE.Bone) as THREE.Bone | undefined;
-    if (key && child && !joints[key]) joints[key] = { bone:o, rest:o.quaternion.clone(), child };
-  });
-  const mixer = gltf.animations.length ? new THREE.AnimationMixer(body) : null;
-  const clips: Partial<Record<MoveState, THREE.AnimationAction>> = {};
-  for (const clip of gltf.animations) {
-    const name = clip.name.toLowerCase();
-    const id: MoveState | null = /idle|stance/.test(name) ? 'idle' : /walk|run/.test(name) ? 'walk'
-      : /jab/.test(name) ? 'jab' : /cross/.test(name) ? 'cross' : /uppercut|hook|heavy/.test(name) ? 'heavy'
-      : /kick/.test(name) ? 'kick' : /hurt|hit/.test(name) ? 'hit' : /death|knock|die/.test(name) ? 'ko' : null;
-    if (id && mixer && !clips[id]) clips[id] = mixer.clipAction(clip);
-  }
-  const qBody = new THREE.Quaternion(), qParent = new THREE.Quaternion(), delta = new THREE.Quaternion();
-  const from = new THREE.Vector3(), to = new THREE.Vector3();
-  const pose = (slot: Limb, x: number, y: number, z: number, weight = 1) => {
-    const j = joints[slot]; if (!j) return;
-    const parent = j.bone.parent; if (!parent) return;
-    // Local-to-parent mapping means this works on Mixamo, VRM-ish and Blender rigs.
-    body.updateWorldMatrix(true, true);
-    body.getWorldQuaternion(qBody);
-    parent.getWorldQuaternion(qParent);
-    from.copy(j.child.position).applyQuaternion(j.rest).normalize();
-    to.set(x,y,z).normalize().applyQuaternion(qBody).applyQuaternion(qParent.invert()).normalize();
-    if (from.lengthSq() < 0.01 || to.lengthSq() < 0.01) return;
-    delta.setFromUnitVectors(from,to);
-    delta.multiply(j.rest);
-    j.bone.quaternion.copy(j.rest).slerp(delta, weight);
-  };
-  let active: MoveState | null = null, age = 0;
-  const update = (dt: number, _elapsed: number, state: MoveState, phase: number) => {
-    age += dt;
-    if (mixer && active !== state) {
-      if (active) clips[active]?.fadeOut(.09);
-      (clips[state] ?? clips.idle)?.reset().fadeIn(.09).play();
-      active = state;
-    }
-    mixer?.update(dt);
-    if (!clips[state]) {
-      // Restore bind poses before computing the target pose (no accumulating rotations).
-      Object.values(joints).forEach(j => j.bone.quaternion.copy(j.rest));
-      const wave = state === 'walk' ? Math.sin(age*10)*.34 : 0;
-      const strike = Math.sin(Math.PI*Math.max(0,Math.min(1,phase)));
-      pose('leftArm',-.46,-.45,.85);
-      pose('rightArm',.46,-.45,.85);
-      pose('leftForearm',.12,.65,.8);
-      pose('rightForearm',-.12,.65,.8);
-      pose('leftThigh',0,-1,wave);
-      pose('rightThigh',0,-1,-wave);
-      if (state === 'jab') {
-        pose('leftArm', -.18, -.18, 1.2, strike);
-        pose('leftForearm',0,.05,1, strike);
-      } else if (state === 'cross' || state === 'heavy') {
-        pose('rightArm', .18,-.11, 1.3, strike);
-        pose('rightForearm',0,.05,1,strike);
-        pose('leftArm',-.25,-.1,1);
-      } else if (state === 'kick') {
-        pose('rightThigh',0,.16,1,strike);
-        pose('rightCalf',0,-.12,1,strike);
-      } else if (state === 'hit') {
-        pose('leftArm',-.4,.65,.35);pose('rightArm',.4,.65,.35);
-      } else if (state === 'win') {
-        pose('leftArm',-.4,1,.1);pose('rightArm',.4,1,.1);
-      }
-    }
-    root.rotation.z = THREE.MathUtils.damp(root.rotation.z,state==='ko'?-1.2:0,8,dt);
-    root.position.y = state==='ko' ? -.35 : state==='walk' ? Math.abs(Math.sin(age*10))*.025 : 0;
-  };
-  return { root, update, dispose: () => {
-    mixer?.stopAllAction();
-    body.traverse(o => { if (o instanceof THREE.Mesh) {
-      o.geometry?.dispose();
-      const m=o.material;if (Array.isArray(m)) m.forEach(v=>v.dispose());else m?.dispose();
+  const loader=new GLTFLoader();
+  const [gltf,motion]=await Promise.all([
+    loader.loadAsync(`./models/${filename}`),loader.loadAsync(`./animations/${filename}`),
+  ]);
+  const root=new THREE.Group(),body=gltf.scene;root.add(body);
+  body.updateWorldMatrix(true,true);
+  if(filename==='anime-girl-base.glb'){
+    const seen=new Set<THREE.Bone>();body.traverse(o=>{if(o instanceof THREE.SkinnedMesh&&!seen.has(o.skeleton.bones[0])){restoreBindPose(o.skeleton.bones,o.skeleton.boneInverses);seen.add(o.skeleton.bones[0]);}});
+    // The two body meshes use inverted units relative to the head/skin rig.
+    // Repair their vertex space without changing the preserved source GLB.
+    body.traverse(o=>{if(o instanceof THREE.SkinnedMesh){
+      o.geometry.computeBoundingBox();if((o.geometry.boundingBox?.max.y??0)>=0)return;
+      o.geometry.scale(-.32,-.32,-.32);
+      const index=o.geometry.index;if(index){for(let i=0;i<index.count;i+=3){const v=index.getX(i+1);index.setX(i+1,index.getX(i+2));index.setX(i+2,v);}index.needsUpdate=true;}
+      o.geometry.computeBoundingBox();o.geometry.computeBoundingSphere();
     }});
+    body.updateWorldMatrix(true,true);
+  }
+  const bounds=new THREE.Box3().setFromObject(body),size=bounds.getSize(new THREE.Vector3());
+  if(!Number.isFinite(size.y)||size.y<.01)throw Error(`Invalid model: ${filename}`);
+  const scale=2.15/size.y,center=bounds.getCenter(new THREE.Vector3());
+  body.scale.setScalar(scale);body.position.set(-center.x*scale,-bounds.min.y*scale,-center.z*scale);
+  body.updateWorldMatrix(true,true);
+  const baseY=body.position.y;
+  const gradient=new THREE.DataTexture(new Uint8Array([65,150,255]),3,1,THREE.RedFormat);
+  gradient.minFilter=gradient.magFilter=THREE.NearestFilter;gradient.needsUpdate=true;
+  const feet:{bone:THREE.Object3D;sole:number}[]=[];
+  const mapped:THREE.Object3D[]=[];
+  const semantic=new Map<string,string>();motion.scene.traverse(o=>{if(o.userData.semantic)semantic.set(o.name,o.userData.semantic);});
+  const meshes:THREE.Mesh[]=[];
+  body.traverse(o=>{
+    const id=semantic.get(o.name);
+    if(id){mapped.push(o);if(/^(foot|ball)_/.test(id))feet.push({bone:o,sole:o.getWorldPosition(new THREE.Vector3()).y});}
+    if(o instanceof THREE.Mesh)meshes.push(o);
+  });
+  for(const mesh of meshes){
+    mesh.castShadow=true;mesh.receiveShadow=false;mesh.frustumCulled=false;
+    const original=Array.isArray(mesh.material)?mesh.material:[mesh.material];
+    const materials=original.map(m=>{
+      const s=m as THREE.MeshStandardMaterial;
+      const toon=new THREE.MeshToonMaterial({color:s.color?.clone()??new THREE.Color('white'),map:s.map,gradientMap:gradient,
+        alphaMap:s.alphaMap,alphaTest:Math.max(s.alphaTest||0,.35),side:s.side,transparent:false,
+        emissive:s.emissive,emissiveMap:s.emissiveMap,emissiveIntensity:.25});
+      s.dispose();return toon;
+    });
+    mesh.material=Array.isArray(mesh.material)?materials:materials[0];
+
+  }
+  const mixer=new THREE.AnimationMixer(body);
+  const actions=new Map<MoveState,THREE.AnimationAction>();
+  for(const clip of motion.animations){
+    const action=mixer.clipAction(clip);const state=clip.name as MoveState;
+    action.setLoop(state==='idle'||state==='walk'?THREE.LoopRepeat:THREE.LoopOnce,Infinity);
+    action.clampWhenFinished=true;actions.set(state,action);
+  }
+  let active:MoveState|null=null;let oldPhase=0;let reactionAge=0;
+  const point=new THREE.Vector3();
+  const update=(dt:number,_elapsed:number,state:MoveState,phase:number)=>{
+    const next=state==='win'?'idle':state;
+    const repeated=next===active&&phase<oldPhase&&next in ATTACKS;
+    if(active!==next||repeated){
+      const previous=active?actions.get(active):undefined;
+      const action=actions.get(next)??actions.get('idle')!;
+      action.reset().setEffectiveWeight(1).setEffectiveTimeScale(1).play();
+      if(next in ATTACKS)action.setDuration(totalDuration(ATTACKS[next as keyof typeof ATTACKS]));
+      if(previous&&previous!==action){previous.fadeOut(next==='hit'?.055:.11);action.fadeIn(next==='hit'?.055:.11);}
+      active=next;reactionAge=0;
+    }
+    oldPhase=phase;reactionAge+=dt;
+    // A short hit reaction is held until stun releases; KO clamps on its last pose.
+    mixer.update(dt);body.position.y=baseY;root.updateWorldMatrix(true,true);
+    let correction=Infinity;
+    if(next==='ko'){
+      for(const bone of mapped){bone.getWorldPosition(point);correction=Math.min(correction,point.y-.06);}
+      if(correction<0)body.position.y-=correction;
+    }else{
+      for(const foot of feet){foot.bone.getWorldPosition(point);correction=Math.min(correction,point.y-foot.sole);}
+      if(Number.isFinite(correction))body.position.y-=correction;
+    }
+    if(next==='idle')body.position.y+=Math.sin(reactionAge*3)*.003;
+  };
+  update(0,0,'idle',0);
+  return {root,update,dispose:()=>{
+    mixer.stopAllAction();mixer.uncacheRoot(body);
+    const geometries=new Set<THREE.BufferGeometry>(),materials=new Set<THREE.Material>(),textures=new Set<THREE.Texture>();
+    body.traverse(o=>{if(o instanceof THREE.Mesh){geometries.add(o.geometry);for(const m of Array.isArray(o.material)?o.material:[o.material]){materials.add(m);for(const v of Object.values(m))if(v instanceof THREE.Texture)textures.add(v);}}});
+    geometries.forEach(g=>g.dispose());materials.forEach(m=>m.dispose());textures.forEach(t=>t.dispose());gradient.dispose();
   }};
 }

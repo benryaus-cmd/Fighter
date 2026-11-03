@@ -17,3 +17,10 @@ test('distance supports depth and not just horizontal plane',()=>{
 test('health and arena helpers clamp',()=>{
   assert.equal(clamp(-1,0,100),0);assert.equal(clamp(250,0,100),100);
 });
+test('attacks cannot connect across separate depth lanes',()=>{
+  assert.equal(canReach(0,0,.6,.6,ATTACKS.heavy.reach),false);
+});
+test('punches cannot land at the old invisible two-metre range',()=>{
+  assert.equal(canReach(0,0,1.6,0,ATTACKS.jab.reach),false);
+  assert.ok(ATTACKS.heavy.reach > ATTACKS.jab.reach);
+});

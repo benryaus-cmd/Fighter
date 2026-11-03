@@ -47,3 +47,14 @@ These models have genuine skinned skeletons, but **none** has animation clips in
 - `tests/` — unit tests for combat rules and random roster
 
 No multiplayer, advanced combos, or authored KinemIQ mocap yet.
+## Combat repair — November 2026
+
+Fighters now use textured cel shading and a camera that frames the active duel in portrait or landscape. The timer and CPU wait for both real models and their animations; a failed asset load offers Retry.
+
+Eight real motion clips per rig cover fighting stance, advance, jab, cross, front kick, power side kick, hit reaction and knockdown. Animation transitions blend in the mixer. Locomotion uses the in-place advance cycle; retreat currently plays that same cycle. All five original models remain in the random roster.
+
+Controls: joystick + A/J jab, B/K cross, X/L front kick, Y/I power kick. Movement stays available during strikes at reduced speed. A short input buffer accepts the next attack near recovery. Hits use tighter reach and depth lanes, with impact pause and smaller knockback. The CPU closes into striking distance and uses kicks when further away.
+
+`npm run bake:combat` regenerates the five animation GLBs from the preserved source clips after restoring the models. This is an offline authoring step; normal dev/build uses the committed clips and performs no animation download or retargeting. See ASSET_CREDITS.md for motion licences.
+
+The base model also needs a runtime repair of its inconsistent FBX bind pose and inverted body-mesh units. Its original GLB remains byte-for-byte preserved.
