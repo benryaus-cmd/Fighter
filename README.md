@@ -50,3 +50,9 @@ No multiplayer, accounts or progression systems.
 Melee damage requires swept contact from the animated fist or foot against the opponent's current head, torso and leg volumes. Both poses update before contact checks. Crouching can duck a high punch, jumping can clear a sweep, and afterimages never have hitboxes. Energy shots also check actual posed body volumes in 3D.
 
 The CPU varies approach, pressure and retreat, leaves room after an attack and sometimes crouches or jumps in response. Heavy hits use the KinemIQ fly-back reaction. Combo finishers and counters can trigger critical bullet time; random critical chance is adjustable. Ghost movement uses at most two cached skeletal snapshots per fighter, with shared geometry.
+
+## Fullscreen launch
+
+On your phone, open the HTTPS game link in Chrome, wait for the fighters to load and tap **Tap to Fight**. That gesture requests real fullscreen with browser navigation hidden and unlocks sound. The match stays paused until you start. The toolbar fullscreen button can restore fullscreen after exiting.
+
+A fullscreen web-app manifest and home-screen icons are included for installation where supported. On iPhone, use the browser's Add to Home Screen option for an app-style launch. Browser fullscreen support varies; a refused request never prevents the game from starting. The service worker uses network-only navigation and stores no game assets, so it does not retain old builds. This is an online game, not an offline package.
