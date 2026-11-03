@@ -1,7 +1,8 @@
 import * as THREE from 'three';
+import type { Settings } from './settings';
 import type { MoveState } from './rules';
 
-export type FighterVisual = { root: THREE.Group; update: (dt: number, elapsed: number, state: MoveState, phase: number) => void; dispose: () => void };
+export type FighterVisual = { root: THREE.Group; configure?: (settings: Settings) => void; update: (dt: number, elapsed: number, state: MoveState, phase: number) => void; dispose: () => void };
 const mat = (hex: number, roughness = .75) => new THREE.MeshStandardMaterial({ color: hex, roughness, metalness: .04 });
 const sphere = (parent: THREE.Object3D, material: THREE.Material, pos: [number, number, number], scale: [number,number,number], seg = 18) => {
   const o = new THREE.Mesh(new THREE.SphereGeometry(1, seg, Math.max(8, Math.round(seg * .65))), material);

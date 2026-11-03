@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { ATTACKS, activeAt, canReach, clamp, totalDuration } from '../src/game/rules.ts';
-test('all four moves have valid damage and timing',()=>{
-  assert.deepEqual(Object.keys(ATTACKS),['jab','cross','kick','heavy']);
+test('all moves have valid damage and timing',()=>{
+  assert.deepEqual(Object.keys(ATTACKS),['jab','cross','kick','heavy','special']);
   for(const spec of Object.values(ATTACKS)) {
     assert.ok(spec.damage>0);assert.ok(spec.reach>.3);
     assert.equal(activeAt(spec,spec.windup/2),false);

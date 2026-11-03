@@ -10,11 +10,18 @@ for(const fighter of ROSTER)test(`${fighter.id}: all eight baked clips target it
  assert.deepEqual(gltf.animations.map(c=>c.name),states);
  for(const clip of gltf.animations){
   assert.ok(clip.channels.length>=50,`${clip.name} covers limbs, spine and fingers`);
+  let changingRotations=0;
   for(const channel of clip.channels){
    assert.ok(gltf.nodes[channel.target.node]?.name);
    const a=gltf.accessors[clip.samplers[channel.sampler].output],v=gltf.bufferViews[a.bufferView];
    const offset=20+len+8+(v.byteOffset||0)+(a.byteOffset||0);
+   if(a.type==='VEC4'){
+    const first=Array.from({length:4},(_,k)=>b.readFloatLE(offset+k*4));let moved=false;
+    for(let f=1;f<a.count;f++){let dot=0;for(let k=0;k<4;k++)dot+=first[k]*b.readFloatLE(offset+(f*4+k)*4);if(Math.abs(dot)<.9999){moved=true;break;}}
+    if(moved)changingRotations++;
+   }
    for(let i=0;i<a.count*(a.type==='VEC4'?4:3);i++)assert.ok(Number.isFinite(b.readFloatLE(offset+i*4)));
   }
+  assert.ok(changingRotations>=3,`${clip.name} must animate at least three joints; frozen clips are not valid`);
  }
 });

@@ -14,7 +14,7 @@ CC BY 4.0: https://creativecommons.org/licenses/by/4.0/ — attribution required
 
 ## Animation licensing
 
-No authored combat animations are embedded in the five uploaded GLBs, and no KinemIQ animation files were supplied. This prototype uses real skeleton bones with **original procedural combat posing** for movement and four attacks. An imported GLB with retargeted animation clips (`Idle`, `Walk`, `Jab`, `Cross`, `Kick`, `Heavy`, `Hit`, `Knockout`) will be recognised by the loader when present. Additional mocap can be obtained from https://kinemiq.app/studio/ . Check and credit each animation's own licence before bundling it.
+The original character GLBs contain no animation clips. The current game uses eight offline-retargeted clips per rig plus a timed special pose. Motion sources and licences are listed below. The stored originals remain unchanged; the base character's bind pose and body vertex units are corrected at runtime.
 
 ## Code
 
@@ -26,3 +26,19 @@ Downloaded from [KinemIQ's free fighting animation library](https://kinemiq.app/
 - **Quaternius Universal Animation Library**, CC0: `punch_jab`, `punch_cross`, `hit_chest`, `death01`. [Creator and library](https://quaternius.com/packs/universalanimationlibrary.html).
 - **ACCAD / The Ohio State University, Open Motion Project**, CC BY 3.0: `male2_g2_frontkick`, `male2_g3_sidekickleadingright`, `male2_e8_bounce`, `male2_e3_advance`. [Original motion capture collection](https://accad.osu.edu/research/motion-lab/mocap-system-and-data). [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/).
 - KinemIQ supplied the common-skeleton conversions. Changes here: trimmed action windows, removed net horizontal travel, corrected each target's posed bind directions, and baked local rotation/hip tracks for the actual target bone names.
+
+## User-supplied sound previews (November 2026)
+
+Local copies of the supplied Freesound preview URLs are bundled under `public/audio/`. The numbers below identify each original Freesound upload; no licence is inferred from a preview URL.
+
+| Local file | Supplied source |
+| --- | --- |
+| fight1.mp3 | https://cdn.freesound.org/previews/189/189648_3454623-lq.mp3 |
+| snap.mp3 | https://cdn.freesound.org/previews/726/726619_15172097-lq.mp3 |
+| thud.mp3 | https://cdn.freesound.org/previews/541/541295_10912485-lq.mp3 |
+| giggle.mp3 | https://cdn.freesound.org/previews/323/323704_950925-lq.mp3 |
+| gasp.mp3 | https://cdn.freesound.org/previews/219/219890_2157839-lq.mp3 |
+| grunt.mp3 | https://cdn.freesound.org/previews/242/242623_950925-lq.mp3 |
+| uwu.mp3 | https://cdn.freesound.org/previews/708/708541_4530523-lq.mp3 |
+
+The Celestial Shrine arena, procedural attack arcs, sparks, shock rings, charging motes and energy projectiles are original code. The Creedey combat pack and Robert Brooks / GameDeveloperStudio slash pack were visual references; no files from either pack are redistributed here.

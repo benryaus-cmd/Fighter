@@ -32,7 +32,7 @@ const sources={};for(const [state,[file,start,end]]of Object.entries(definitions
  const gltf=await load(`assets/motion-source/${file}.glb`);const bones=new Map();gltf.scene.traverse(o=>bones.set(o.name,o));
  const rest=new Map();gltf.scene.updateMatrixWorld(true);for(const [n,o]of bones)rest.set(n,{q:o.getWorldQuaternion(new T.Quaternion()),p:o.getWorldPosition(new T.Vector3())});
  const mixer=new T.AnimationMixer(gltf.scene);const action=mixer.clipAction(gltf.animations[0]);action.setLoop(T.LoopOnce,1);action.clampWhenFinished=true;action.play();
- sources[state]={...gltf,bones,rest,mixer,start,end};
+ sources[state]={...gltf,bones,rest,mixer,action,start,end};
 }
 for(const file of (await fs.readdir('public/models')).filter(f=>f.endsWith('.glb'))){
  const scene=readHierarchy(await fs.readFile('public/models/'+file),file==='anime-girl-base.glb');const ordered=[];const map=new Map();scene.traverse(o=>{const s=o.userData.semantic;if(s&&!map.has(s)){map.set(s,o);ordered.push([s,o]);}});
@@ -40,6 +40,9 @@ for(const file of (await fs.readdir('public/models')).filter(f=>f.endsWith('.glb
  const saved=new Map();scene.traverse(o=>saved.set(o,{q:o.quaternion.clone(),p:o.position.clone(),worldQ:o.getWorldQuaternion(new T.Quaternion()),worldP:o.getWorldPosition(new T.Vector3())}));
  const clips=[];
  for(const [state,source]of Object.entries(sources)){
+  // Never sample a negative time: LoopOnce clamps and pauses at the start.
+  // Reset per rig so a previous end-frame sample cannot leave the source paused.
+  source.action.reset().play();
   const corrections=new Map();
   for(const [s,o]of ordered){
    const srcRest=source.rest.get(s);if(!srcRest)continue;
@@ -58,7 +61,7 @@ for(const file of (await fs.readdir('public/models')).filter(f=>f.endsWith('.glb
   const hip=map.get('pelvis'),hipRest=saved.get(hip);const scale=hipRest.worldP.y/source.rest.get('pelvis').p.y;
   for(let i=0;i<count;i++){
    scene.traverse(o=>{o.quaternion.copy(saved.get(o).q);o.position.copy(saved.get(o).p);});scene.updateMatrixWorld(true);
-   source.mixer.setTime(source.start+times[i]-.000001);source.scene.updateMatrixWorld(true);
+   source.mixer.setTime(Math.max(0,Math.min(source.start+times[i],source.animations[0].duration-.000001)));source.scene.updateMatrixWorld(true);
    for(const [s,o]of ordered){
     const src=source.bones.get(s),correction=corrections.get(o);if(!src||!correction)continue;
     const world=src.getWorldQuaternion(new T.Quaternion()).multiply(correction);

@@ -1,7 +1,9 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import type { MoveState } from './rules.ts';
-import { ATTACKS, totalDuration } from './rules.ts';
+import { ATTACKS, totalDuration, attackSpec, attackClipProgress } from './rules.ts';
+import { DEFAULT_SETTINGS } from './settings';
+import type { Settings } from './settings';
 import { restoreBindPose } from '../../scripts/rig-map.mjs';
 import type { FighterVisual } from './ProceduralFighter';
 /** Real motion clips are retargeted once by scripts/bake-combat.mjs. */
@@ -30,7 +32,7 @@ export async function loadGLBFighter(filename: string): Promise<FighterVisual> {
   body.scale.setScalar(scale);body.position.set(-center.x*scale,-bounds.min.y*scale,-center.z*scale);
   body.updateWorldMatrix(true,true);
   const baseY=body.position.y;
-  const gradient=new THREE.DataTexture(new Uint8Array([65,150,255]),3,1,THREE.RedFormat);
+  const gradient=new THREE.DataTexture(new Uint8Array(256),256,1,THREE.RedFormat);
   gradient.minFilter=gradient.magFilter=THREE.NearestFilter;gradient.needsUpdate=true;
   const feet:{bone:THREE.Object3D;sole:number}[]=[];
   const mapped:THREE.Object3D[]=[];
@@ -54,9 +56,13 @@ export async function loadGLBFighter(filename: string): Promise<FighterVisual> {
     mesh.material=Array.isArray(mesh.material)?materials:materials[0];
 
   }
+  let settings:Settings={...DEFAULT_SETTINGS};
+  const configure=(value:Settings)=>{settings=value;const data=gradient.image.data as Uint8Array;for(let i=0;i<256;i++){const band=i<85?65:i<170?150:255;data[i]=Math.round(i*(1-settings.toonStrength)+band*settings.toonStrength);}gradient.needsUpdate=true;};
+  configure(settings);
   const mixer=new THREE.AnimationMixer(body);
   const actions=new Map<MoveState,THREE.AnimationAction>();
-  for(const clip of motion.animations){
+  const burst=motion.animations.find(c=>c.name==='cross')!.clone();burst.name='special';
+  for(const clip of [...motion.animations,burst]){
     const action=mixer.clipAction(clip);const state=clip.name as MoveState;
     action.setLoop(state==='idle'||state==='walk'?THREE.LoopRepeat:THREE.LoopOnce,Infinity);
     action.clampWhenFinished=true;actions.set(state,action);
@@ -70,10 +76,11 @@ export async function loadGLBFighter(filename: string): Promise<FighterVisual> {
       const previous=active?actions.get(active):undefined;
       const action=actions.get(next)??actions.get('idle')!;
       action.reset().setEffectiveWeight(1).setEffectiveTimeScale(1).play();
-      if(next in ATTACKS)action.setDuration(totalDuration(ATTACKS[next as keyof typeof ATTACKS]));
-      if(previous&&previous!==action){previous.fadeOut(next==='hit'?.055:.11);action.fadeIn(next==='hit'?.055:.11);}
+      if(next in ATTACKS)action.paused=true;
+      if(previous&&previous!==action){previous.fadeOut(next==='hit'?.055:settings.transitionTime);action.fadeIn(next==='hit'?.055:settings.transitionTime);}
       active=next;reactionAge=0;
     }
+    if(next in ATTACKS){const id=next as keyof typeof ATTACKS,spec=attackSpec(id,settings),action=actions.get(next)!;action.time=attackClipProgress(id,spec,phase*totalDuration(spec))*action.getClip().duration;}
     oldPhase=phase;reactionAge+=dt;
     // A short hit reaction is held until stun releases; KO clamps on its last pose.
     mixer.update(dt);body.position.y=baseY;root.updateWorldMatrix(true,true);
@@ -88,7 +95,7 @@ export async function loadGLBFighter(filename: string): Promise<FighterVisual> {
     if(next==='idle')body.position.y+=Math.sin(reactionAge*3)*.003;
   };
   update(0,0,'idle',0);
-  return {root,update,dispose:()=>{
+  return {root,update,configure,dispose:()=>{
     mixer.stopAllAction();mixer.uncacheRoot(body);
     const geometries=new Set<THREE.BufferGeometry>(),materials=new Set<THREE.Material>(),textures=new Set<THREE.Texture>();
     body.traverse(o=>{if(o instanceof THREE.Mesh){geometries.add(o.geometry);for(const m of Array.isArray(o.material)?o.material:[o.material]){materials.add(m);for(const v of Object.values(m))if(v instanceof THREE.Texture)textures.add(v);}}});

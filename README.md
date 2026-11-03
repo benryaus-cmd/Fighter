@@ -1,60 +1,46 @@
-# HAM FIGHTER — 3D mobile fighting prototype
+# HAM FIGHTER
 
-One player versus a CPU opponent. **Five supplied rigged female fighters; two different characters are chosen at random per match**. A fast, lightweight React + Vite + Three.js game based on the user's Aippy/React game patterns.
+Mobile-first 3D anime fighting prototype. One player versus a CPU, with two random fighters from five supplied GLBs. React, TypeScript, Vite and Three.js; one React root, no server or database.
 
-## Start
+## Run
 
-Requires Node.js 20.19+ or 22.12+. Run:
-
-```bash
-npm install
+```sh
+npm ci
 npm run dev
 ```
 
-For deployment run `npm run build`; `dist/` is a standalone static website. The project has no server/database and supports Android/iPhone touchscreen input. A CI workflow runs `npm test` and `npm run build` on push.
+Open the printed network address on a phone connected to the same Wi-Fi. `npm run dev -- --port 5187 --strictPort` uses an alternate port if an older server is still running. Accept Node.js access to Windows Private networks when prompted.
+
+`npm test` runs the focused rules/rig/settings checks. `npm run build` restores verified model assets and produces the static site in `dist/`.
 
 ## Play
 
-- **Left** virtual joystick moves the fighter in the small 3D arena. Works simultaneously with right-side actions using multi-touch.
-- **Right** four attack buttons: **JAB, CROSS, KICK, HEAVY**.
-- Keyboard: WASD/arrows to move, J/K/L/I to attack, R to restart after KO.
-- 90-second fights, hit timing and reach, health, hitstun, knockback, ring limits, sound and vibration, KO results, basic CPU opponent.
-- **FIGHT AGAIN** selects a *different random pair* from the five fighters.
-- Models appear only when present at the paths below; otherwise original low-poly fighters are shown as a backup. Gameplay always remains usable.
+- Joystick / WASD / arrows: move, including during attacks at reduced speed.
+- A / J: jab. B / K: cross. X / L: front kick. Y / I: power side kick.
+- BURST / U / Space: Celestial Burst, a charging ranged projectile. Costs 35 KI by default. Hits and time refill energy. Sidestep it to dodge.
+- Land A → A → B for **Heartbreaker**, or A → B → X for **Crimson Rush**, within the combo window. The final hit adds damage, a stronger impact and bonus energy. Press the next attack near recovery to buffer it; combos require landed hits.
+- R / Fight Again: replay with a new random pair after KO.
 
-## Included fighter assets
+Jab and cross now have longer, separate wind-up / extension-hold / recovery phases. Eight baked motion clips per rig cover stance, advance, four attacks, hit reactions and knockdown. Retreat currently reuses the advance cycle. Specials reuse the cross pose with their own timing.
 
-| Source upload | Runtime path |
-| --- | --- |
-| cat_girl_-_anime_character_model.glb | `public/models/cat-girl.glb` |
-| cute_anime_girl.glb | `public/models/cute-anime-girl.glb` |
-| anime_girl_-_nieko.glb | `public/models/nieko.glb` |
-| mei_tachibana_-_jashin_chan_dropkick.glb | `public/models/mei-tachibana.glb` |
-| busty_anime_girl_base.glb | `public/models/anime-girl-base.glb` |
+## Fight lab
 
-These models have genuine skinned skeletons, but **none** has animation clips in the uploaded files. `src/game/GLBFighter.ts` identifies VR Avatars, Mixamo and Blender bone-name conventions and procedurally poses the arm/leg bones for fighting. It is an initial animation pass, not finished motion-captured combat animation. For advanced fighting motion, export a rig-retargeted GLB from [KinemIQ Studio](https://kinemiq.app/studio/) with `Idle`, `Walk`, `Jab`, `Cross`, `Kick`, `Heavy`, `Hit` and `KO` clips.
+Open Settings above the arena. The fight pauses while the panel is open. Changes apply live and persist on this device.
 
-**Licence and author credits:** See [ASSET_CREDITS.md](ASSET_CREDITS.md). All GLBs report CC BY 4.0 in embedded metadata. Copyright of any underlying franchised characters should be reviewed separately before commercial release.
+- **Fight:** individual attack durations, extension hold, blending, hit pause, input buffering, combo window, damage, movement, game speed, CPU aggression, energy cost/regeneration and CPU/infinite-energy switches.
+- **Look:** three lighting presets, toon shading strength, impacts, trails, camera shake/zoom, exposure and individual light intensities.
+- **Sound:** music, combat and voice volumes, plus music/voice switches.
+- **Copy JSON:** exports the full configuration with a version number. Uses the Clipboard API on secure pages and a selection/copy fallback on local HTTP. The JSON remains selectable if copying is blocked.
+- **Restore defaults:** resets all settings and the saved configuration.
 
-## Source structure
+Music unlocks on the first real tap or keypress. Local audio buffers are decoded once and reused. Voice reactions have a cooldown. Returning from a hidden tab may require another tap to resume browser audio.
 
-- `src/game/FightGame.ts` — Three.js scene, CPU AI, camera, match logic and model selection
-- `src/game/GLBFighter.ts` — rigged GLB loader and bone-driven animation fallback
-- `src/game/roster.ts` — character assets and nonduplicating random selection
-- `src/game/rules.ts` — attacks and hit timing
-- `src/components/Joystick.tsx` — multitouch movement
-- `src/App.tsx`, `src/style.css` — HUD and on-screen controls
-- `tests/` — unit tests for combat rules and random roster
+## Assets and rendering
 
-No multiplayer, advanced combos, or authored KinemIQ mocap yet.
-## Combat repair — November 2026
+The Celestial Shrine is a procedural floating arena with a rose sunset, temple gate, floating islands, runes and drifting motes. Hits use bounded, recycled particles, attack arcs and shock rings. No post-processing pipeline is required.
 
-Fighters now use textured cel shading and a camera that frames the active duel in portrait or landscape. The timer and CPU wait for both real models and their animations; a failed asset load offers Retry.
+All five original characters remain: `cat-girl.glb`, `cute-anime-girl.glb`, `nieko.glb`, `mei-tachibana.glb`, `anime-girl-base.glb`. `scripts/unpack-models.mjs` restores and verifies their original bytes from committed chunks. The base model's inconsistent FBX bind pose and inverted body units are repaired at load time; the stored source asset remains unchanged.
 
-Eight real motion clips per rig cover fighting stance, advance, jab, cross, front kick, power side kick, hit reaction and knockdown. Animation transitions blend in the mixer. Locomotion uses the in-place advance cycle; retreat currently plays that same cycle. All five original models remain in the random roster.
+`npm run bake:combat` regenerates the five animation GLBs from `assets/motion-source/`. This is an offline authoring step; phones load the committed, already-retargeted clips. See [ASSET_CREDITS.md](ASSET_CREDITS.md) for model, animation and audio sources.
 
-Controls: joystick + A/J jab, B/K cross, X/L front kick, Y/I power kick. Movement stays available during strikes at reduced speed. A short input buffer accepts the next attack near recovery. Hits use tighter reach and depth lanes, with impact pause and smaller knockback. The CPU closes into striking distance and uses kicks when further away.
-
-`npm run bake:combat` regenerates the five animation GLBs from the preserved source clips after restoring the models. This is an offline authoring step; normal dev/build uses the committed clips and performs no animation download or retargeting. See ASSET_CREDITS.md for motion licences.
-
-The base model also needs a runtime repair of its inconsistent FBX bind pose and inverted body-mesh units. Its original GLB remains byte-for-byte preserved.
+No multiplayer, accounts or progression systems.
