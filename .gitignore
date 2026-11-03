@@ -5,3 +5,6 @@ dist/
 .env
 .env.*
 !*.example
+
+# Recreated by scripts/unpack-models.mjs from committed encoded chunks.
+public/models/*.glb
