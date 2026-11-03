@@ -22,7 +22,7 @@ function classifyBone(name: string): Limb | null {
 }
 /** Attach neutral-direction targets to any skinned humanoid with arm/leg bones. */
 export async function loadGLBFighter(filename: string): Promise<FighterVisual> {
-  const gltf = await new GLTFLoader().loadAsync(`${import.meta.env.BASE_URL}models/${filename}`);
+  const gltf = await new GLTFLoader().loadAsync(`./models/${filename}`);
   const root = new THREE.Group(), body = gltf.scene;
   root.add(body);
   body.updateWorldMatrix(true, true);
