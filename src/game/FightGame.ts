@@ -4,10 +4,12 @@ import type { ActiveAttack, AttackId, MoveState } from './rules';
 import { createProceduralFighter } from './ProceduralFighter';
 import type { FighterVisual } from './ProceduralFighter';
 import { loadGLBFighter } from './GLBFighter';
+import { chooseFighters } from './roster';
+import type { RosterFighter } from './roster';
 
 export type GameView = {
   player: number; enemy: number; timer: number; over: boolean;
-  winner: 'player' | 'enemy' | 'draw' | null; status: string; loaded: [boolean,boolean];
+  winner: 'player' | 'enemy' | 'draw' | null; status: string; loaded: [boolean,boolean]; names: [string,string];
 };
 type Fighter = { x:number;z:number; health:number; stun:number; attack:ActiveAttack|null; move:boolean; visual:FighterVisual; state:MoveState };
 type Flash = { sprite:THREE.Mesh; ttl:number;max:number };
@@ -25,6 +27,8 @@ export class FightGame {
   private horizontal=0; private vertical=0; private keys=new Set<string>();
   private aiNext=1; private shake=0;
   private loaded:[boolean,boolean]=[false,false];
+  private selected:readonly [RosterFighter,RosterFighter]=chooseFighters();
+  private modelGeneration=0;
   private alive=true;
   private audio: AudioContext | null=null;
   private resizeObserver:ResizeObserver;
@@ -81,17 +85,23 @@ export class FightGame {
     window.addEventListener('blur',this.blur);
     document.addEventListener('visibilitychange',this.visibility);
     this.last=performance.now();this.frame=requestAnimationFrame(this.loop);
-    this.tryModel(0,'cat-girl.glb');this.tryModel(1,'cute-anime-girl.glb');
+    this.loadSelectedModels();
     this.publish();
   }
+  private loadSelectedModels(){
+    const generation=++this.modelGeneration;
+    this.loaded=[false,false];
+    void this.tryModel(0,this.selected[0].file,generation);
+    void this.tryModel(1,this.selected[1].file,generation);
+  }
   private makeFighter(x:number,z:number,visual:FighterVisual):Fighter { return {x,z,health:100,stun:0,attack:null,move:false,visual,state:'idle'}; }
-  private async tryModel(index:0|1,filename:string){
+  private async tryModel(index:0|1,filename:string,generation:number){
     try {
       // Avoid sending a Sketchfab download request: only local, user-licensed GLBs are loaded.
       const response=await fetch(`./models/${filename}`,{method:'HEAD'});
-      if(!response.ok||!/^model\/|application\/octet-stream|application\/binary/.test(response.headers.get('content-type')||''))return;
+      if(!response.ok)return;
       const visual=await loadGLBFighter(filename);
-      if(!this.alive){visual.dispose();return;}
+      if(!this.alive || generation !== this.modelGeneration){visual.dispose();return;}
       const fighter=this.fighters[index];
       this.scene.remove(fighter.visual.root);fighter.visual.dispose();
       fighter.visual=visual;this.scene.add(visual.root);this.loaded[index]=true;this.publish();
@@ -164,6 +174,8 @@ export class FightGame {
   }
   private finish(winner:GameView['winner']){this.over=true;this.winner=winner;this.status=winner==='player'?'YOU WIN!':winner==='enemy'?'K.O.':'DRAW!';this.publish();}
   restart(){
+    this.selected=chooseFighters();
+    this.loadSelectedModels();
     this.time=90;this.over=false;this.winner=null;this.t=0;this.aiNext=1;this.status='FIGHT!';
     this.fighters.forEach((f,i)=>{f.x=i===0?-1.65:1.65;f.z=0;f.health=100;f.attack=null;f.stun=0;f.move=false;f.state='idle';});
     this.publish();
@@ -230,9 +242,9 @@ export class FightGame {
     if(this.t>.24&&Math.floor(this.t*9)!==Math.floor((this.t-dt)*9))this.publish();
     this.frame=requestAnimationFrame(this.loop);
   };
-  private publish(){if(this.alive)this.onView({player:this.fighters[0].health,enemy:this.fighters[1].health,timer:Math.ceil(this.time),over:this.over,winner:this.winner,status:this.status,loaded:[...this.loaded] as [boolean,boolean]});}
+  private publish(){if(this.alive)this.onView({player:this.fighters[0].health,enemy:this.fighters[1].health,timer:Math.ceil(this.time),over:this.over,winner:this.winner,status:this.status,loaded:[...this.loaded] as [boolean,boolean],names:[this.selected[0].name,this.selected[1].name]});}
   destroy(){
-    this.alive=false;cancelAnimationFrame(this.frame);this.resizeObserver.disconnect();
+    this.alive=false;this.modelGeneration++;cancelAnimationFrame(this.frame);this.resizeObserver.disconnect();
     window.removeEventListener('keydown',this.keydown);window.removeEventListener('keyup',this.keyup);window.removeEventListener('blur',this.blur);document.removeEventListener('visibilitychange',this.visibility);
     this.fighters.forEach(f=>f.visual.dispose());
     this.flashes.forEach(f=>{f.sprite.geometry.dispose();(f.sprite.material as THREE.Material).dispose();});
