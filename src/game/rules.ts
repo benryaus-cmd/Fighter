@@ -55,6 +55,8 @@ export function stepJump(y:number,vy:number,dt:number,gravity:number){
 }
 export function contextualAttack(id:AttackId,airborne:boolean,crouched:boolean):AttackId{return id==='kick'||id==='heavy'?airborne?'flyingKick':crouched?'sweep':id:id;}
 export function cpuDirection(distance:number,mode:'approach'|'pressure'|'reset',threat:boolean){
- if(distance<.9||(mode==='reset'&&distance<1.65)||(threat&&distance<1.3))return -1;
+ if(distance<.9)return -1;
+ if(mode==='reset')return distance<1.65?-1:0;
+ if(threat&&distance<1.3)return -1;
  if(distance>1.45)return 1;return 0;
 }

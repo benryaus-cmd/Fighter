@@ -15,5 +15,5 @@ test('jump physics lands cleanly and contextual kicks select the right variant',
  assert.equal(rules.contextualAttack?.('kick',false,true),'sweep');assert.equal(rules.contextualAttack?.('heavy',true,false),'flyingKick');assert.equal(rules.contextualAttack?.('jab',true,false),'jab');
 });
 test('CPU retreats at close range and during reset instead of always walking in',()=>{
- assert.equal(rules.cpuDirection?.(.75,'pressure',false),-1);assert.equal(rules.cpuDirection?.(1.15,'reset',false),-1);assert.equal(rules.cpuDirection?.(2.2,'approach',false),1);assert.equal(rules.cpuDirection?.(1.2,'pressure',false),0);
+ assert.equal(rules.cpuDirection?.(.75,'pressure',false),-1);assert.equal(rules.cpuDirection?.(1.15,'reset',false),-1);assert.equal(rules.cpuDirection?.(2.2,'approach',false),1);assert.equal(rules.cpuDirection?.(1.2,'pressure',false),0);assert.equal(rules.cpuDirection?.(1.9,'reset',false),0);
 });
