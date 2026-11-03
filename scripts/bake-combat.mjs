@@ -11,6 +11,7 @@ const definitions={
  jab:['punch_jab',0,.65],cross:['punch_cross',0,.8],
  kick:['male2_g2_frontkick',.30,1.40],heavy:['male2_g3_sidekickleadingright',.25,1.35],
  hit:['hit_chest',0,.333],ko:['death01',0,2.4],
+ crouch:['crouch_idle_loop',0,1.8],jump:['jump_loop',0,1.0],retreat:['male2_e5_retreat',1.3,2.8],flyback:['hit_knockback',0,.83],
 };
 import { semantic, restoreBindPose } from './rig-map.mjs';
 const next={pelvis:'spine_01',spine_01:'spine_02',spine_02:'spine_03',spine_03:'neck_01',neck_01:'Head'};
@@ -78,6 +79,8 @@ for(const file of (await fs.readdir('public/models')).filter(f=>f.endsWith('.glb
   tracks.push(new T.VectorKeyframeTrack(hip.name+'.position',times,hips));clips.push(new T.AnimationClip(state,-1,tracks));
  }
  scene.traverse(o=>{o.quaternion.copy(saved.get(o).q);o.position.copy(saved.get(o).p);});
+ const selectedNodes=new Set(ordered.map(([,o])=>o));
+ scene.traverse(o=>{if(o.userData.semantic&&!selectedNodes.has(o))delete o.userData.semantic;});
  const result=await new GLTFExporter().parseAsync(scene,{binary:true,animations:clips,onlyVisible:false});
  const path=`public/animations/${file}`;await fs.writeFile(path,Buffer.from(result));console.log(`${file}: ${ordered.length} joints, ${clips.length} clips, ${(result.byteLength/1024).toFixed(0)} KiB`);
 }

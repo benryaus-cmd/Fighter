@@ -14,7 +14,7 @@ CC BY 4.0: https://creativecommons.org/licenses/by/4.0/ — attribution required
 
 ## Animation licensing
 
-The original character GLBs contain no animation clips. The current game uses eight offline-retargeted clips per rig plus a timed special pose. Motion sources and licences are listed below. The stored originals remain unchanged; the base character's bind pose and body vertex units are corrected at runtime.
+The original character GLBs contain no animation clips. The current game uses twelve offline-retargeted clips per rig plus a timed special pose. Motion sources and licences are listed below. The stored originals remain unchanged; the base character's bind pose and body vertex units are corrected at runtime.
 
 ## Code
 
@@ -42,3 +42,6 @@ Local copies of the supplied Freesound preview URLs are bundled under `public/au
 | uwu.mp3 | https://cdn.freesound.org/previews/708/708541_4530523-lq.mp3 |
 
 The Celestial Shrine arena, procedural attack arcs, sparks, shock rings, charging motes and energy projectiles are original code. The Creedey combat pack and Robert Brooks / GameDeveloperStudio slash pack were visual references; no files from either pack are redistributed here.
+
+
+Additional movement/reaction clips: `crouch_idle_loop`, `jump_loop`, `hit_knockback` (Quaternius Universal Animation Libraries 1/2, CC0), and `male2_e5_retreat` (ACCAD / Ohio State University, CC BY 3.0), obtained through the same KinemIQ library. Crouched sweep and downward flying-kick adjustments are original runtime posing. Character outlines use Three.js OutlineEffect (MIT); afterimages reuse the supplied character geometry and preserve its attribution.

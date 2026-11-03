@@ -7,7 +7,7 @@ import { Joystick } from './components/Joystick';
 import {SettingsPanel} from './components/SettingsPanel';
 import {readSettings,saveSettings} from './game/settings';
 
-const INITIAL:GameView={energy:60,combo:'',player:100,enemy:100,timer:90,over:false,winner:null,status:'LOADING FIGHTERS',ready:false,failed:false,loaded:[false,false],names:['CAT GIRL','CUTE GIRL']};
+const INITIAL:GameView={stance:'stand',critical:false,energy:60,combo:'',player:100,enemy:100,timer:90,over:false,winner:null,status:'LOADING FIGHTERS',ready:false,failed:false,loaded:[false,false],names:['CAT GIRL','CUTE GIRL']};
 export default function App(){
   const stageRef=useRef<HTMLDivElement>(null),gameRef=useRef<FightGame|null>(null);
   const [view,setView]=useState<GameView>(INITIAL);
@@ -21,8 +21,9 @@ export default function App(){
   useEffect(()=>{gameRef.current?.setPaused(settingsOpen);},[settingsOpen]);
   const setStick=useCallback((x:number,y:number)=>gameRef.current?.setStick(x,y),[]);
   const attack=useCallback((id:AttackId)=>gameRef.current?.attack(id),[]);
-  return <main className="game-shell">
+  return <main className={`game-shell${view.critical?' critical-mode':''}`}>
     <div className="stage" ref={stageRef}>
+      <div className="critical-flash" aria-hidden="true"/>
       <div className="stage-glow" aria-hidden="true" />
       <header className="hud">
         <div className="fighter-hud left">
@@ -51,13 +52,13 @@ export default function App(){
         <button className="restart-button" onClick={()=>gameRef.current?.restart()}>FIGHT AGAIN ↻</button>
       </div>}
       <div className="mobile-controls">
-        <div className="left-controls"><Joystick onChange={setStick} disabled={settingsOpen||view.over||!view.ready}/><div className="control-help">MOVE / DODGE</div></div>
+        <div className="left-controls"><Joystick onChange={setStick} disabled={settingsOpen||view.over||!view.ready}/><div className="control-help">↑ JUMP · ↓ CROUCH</div></div>
         <div className="right-controls">{ATTACK_BUTTONS.map(a=><button key={a.id} disabled={settingsOpen||view.over||!view.ready} className={`attack-button attack-${a.id}`}
           onPointerDown={e=>{e.preventDefault();attack(a.id);}}
           onContextMenu={e=>e.preventDefault()}
           aria-label={`${a.label} attack`}>
           <span className="attack-symbol">{a.symbol}</span>
-          <span>{a.label}</span>
+          <span>{a.id==='kick'||a.id==='heavy'?view.stance==='air'?'FLYING KICK':view.stance==='crouch'?'LOW SWEEP':a.label:a.label}</span>
         </button>)}</div>
       </div>
       <div className="special-control">
@@ -67,6 +68,6 @@ export default function App(){
       {settingsOpen&&<SettingsPanel value={settings} onChange={setSettings} onClose={()=>setSettingsOpen(false)}/>}
       <div className="bottom-meta"><span>HAM FIGHTER <b>ALPHA</b></span><span>{view.ready?'A A B · A B X':'LOADING'}</span></div>
     </div>
-    <footer className="info-bar"><span>Keyboard: WASD / arrows to move · J/K/L/I to attack · U / Space burst · R restart</span><a href="https://github.com/benryaus-cmd/Fighter/blob/main/ASSET_CREDITS.md" target="_blank" rel="noreferrer">Character credits • CC BY ↗</a></footer>
+    <footer className="info-bar"><span>Keyboard: A/D move · W jump · S crouch · J/K/L/I to attack · U / Space burst · R restart</span><a href="https://github.com/benryaus-cmd/Fighter/blob/main/ASSET_CREDITS.md" target="_blank" rel="noreferrer">Character credits • CC BY ↗</a></footer>
   </main>;
 }
