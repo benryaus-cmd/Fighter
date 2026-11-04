@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { ROSTER } from '../src/game/roster.ts';
-const states=['idle','walk','jab','cross','kick','heavy','hit','ko','crouch','jump','retreat','flyback'];
+const states=['idle','walk','jab','cross','kick','heavy','hit','ko','crouch','jump','retreat','flyback','flyingKnee','backfistL','backfistR','uppercut','backKick','capoeira','guard','dodgeBack','dodgeIn','intro1','intro2','victory1','victory2'];
 for(const fighter of ROSTER)test(`${fighter.id}: all baked clips target its real rig with finite samples`,()=>{
  const b=readFileSync(new URL(`../public/animations/${fighter.file}`,import.meta.url));
  assert.equal(b.toString('ascii',0,4),'glTF');

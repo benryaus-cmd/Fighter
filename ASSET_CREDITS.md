@@ -14,7 +14,7 @@ CC BY 4.0: https://creativecommons.org/licenses/by/4.0/ — attribution required
 
 ## Animation licensing
 
-The original character GLBs contain no animation clips. The current game uses twelve offline-retargeted clips per rig plus a timed special pose. Motion sources and licences are listed below. The stored originals remain unchanged; the base character's bind pose and body vertex units are corrected at runtime.
+The original character GLBs contain no animation clips. The current game uses 25 offline-retargeted clips per rig plus a timed special pose. Motion sources and licences are listed below. The stored originals remain unchanged; the base character's bind pose and body vertex units are corrected at runtime.
 
 ## Code
 
@@ -45,3 +45,12 @@ The Celestial Shrine arena, procedural attack arcs, sparks, shock rings, chargin
 
 
 Additional movement/reaction clips: `crouch_idle_loop`, `jump_loop`, `hit_knockback` (Quaternius Universal Animation Libraries 1/2, CC0), and `male2_e5_retreat` (ACCAD / Ohio State University, CC BY 3.0), obtained through the same KinemIQ library. Crouched sweep and downward flying-kick adjustments are original runtime posing. Character outlines use Three.js OutlineEffect (MIT); afterimages reuse the supplied character geometry and preserve its attribution.
+
+## Expanded combat and round performances (November 2026)
+
+Thirteen additional skeleton-only KinemIQ clips are preserved in `assets/motion-source/` and baked into each real rig (25 clips per fighter):
+
+- **ACCAD / Ohio State University, CC BY 3.0:** `male2_e11_backfistleft`, `male2_e12_backfistright`, `male2_e8_uppercutright`, `male2_g5_backkick`, `male2_g7_capoeira`, `male2_e17_blockmiddlehigh`, `male2_c24_quicksidestepleft`, `male2_c25_quicksidestepright`, `male2_d11_readytotaunt1toready`, `male2_d12_readytotaunt1toready`, `male2_d9_victory1`, `male2_d10_victory2`.
+- **Quaternius Universal Animation Library 2, CC0:** `melee_knee`.
+
+Motion download base: `https://kinemiq.app/wp-content/kinemiq-app/library/clips/`. Changes: trimmed performances, horizontal root travel removed, front/back/capoeira kick and selected punch contact directions aligned toward the opponent, then offline retargeted to all five supplied skeletons. Runtime sweep posing is original; the flying knee now uses a real knee-strike clip.

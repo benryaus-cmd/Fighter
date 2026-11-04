@@ -12,7 +12,16 @@ const definitions={
  kick:['male2_g2_frontkick',.30,1.40],heavy:['male2_g3_sidekickleadingright',.25,1.35],
  hit:['hit_chest',0,.333],ko:['death01',0,2.4],
  crouch:['crouch_idle_loop',0,1.8],jump:['jump_loop',0,1.0],retreat:['male2_e5_retreat',1.3,2.8],flyback:['hit_knockback',0,.83],
+ flyingKnee:['melee_knee',0,.7],
+ backfistL:['male2_e11_backfistleft',.15,1.4],backfistR:['male2_e12_backfistright',.35,1.8],
+ uppercut:['male2_e8_uppercutright',.1,1.47],backKick:['male2_g5_backkick',.3,1.8],capoeira:['male2_g7_capoeira',.15,1.65],
+ guard:['male2_e17_blockmiddlehigh',.4,1.7],
+ dodgeBack:['male2_c24_quicksidestepleft',.05,1.4],dodgeIn:['male2_c25_quicksidestepright',.05,1.4],
+ intro1:['male2_d11_readytotaunt1toready',0,5.3],intro2:['male2_d12_readytotaunt1toready',0,5.3],
+ victory1:['male2_d9_victory1',0,5.5],victory2:['male2_d10_victory2',0,5.5],
 };
+// Rotate the whole recorded action into the opponent's lane at contact.
+const contactAlignment={kick:['foot_r',.77],backKick:['foot_r',.96],capoeira:['foot_l',.70],flyingKnee:['calf_r',.336],backfistL:['hand_l',.6],backfistR:['hand_r',.93],uppercut:['hand_r',.634]};
 import { semantic, restoreBindPose } from './rig-map.mjs';
 const next={pelvis:'spine_01',spine_01:'spine_02',spine_02:'spine_03',spine_03:'neck_01',neck_01:'Head'};
 for(const s of ['l','r']){
@@ -33,7 +42,9 @@ const sources={};for(const [state,[file,start,end]]of Object.entries(definitions
  const gltf=await load(`assets/motion-source/${file}.glb`);const bones=new Map();gltf.scene.traverse(o=>bones.set(o.name,o));
  const rest=new Map();gltf.scene.updateMatrixWorld(true);for(const [n,o]of bones)rest.set(n,{q:o.getWorldQuaternion(new T.Quaternion()),p:o.getWorldPosition(new T.Vector3())});
  const mixer=new T.AnimationMixer(gltf.scene);const action=mixer.clipAction(gltf.animations[0]);action.setLoop(T.LoopOnce,1);action.clampWhenFinished=true;action.play();
- sources[state]={...gltf,bones,rest,mixer,action,start,end};
+ let yaw=new T.Quaternion();
+ const contact=contactAlignment[state];if(contact){mixer.setTime(contact[1]);gltf.scene.updateMatrixWorld(true);const delta=bones.get(contact[0]).getWorldPosition(new T.Vector3()).sub(bones.get('pelvis').getWorldPosition(new T.Vector3()));yaw.setFromAxisAngle(new T.Vector3(0,1,0),-Math.atan2(delta.x,delta.z));action.reset().play();}
+ sources[state]={...gltf,bones,rest,mixer,action,start,end,yaw};
 }
 for(const file of (await fs.readdir('public/models')).filter(f=>f.endsWith('.glb'))){
  const scene=readHierarchy(await fs.readFile('public/models/'+file),file==='anime-girl-base.glb');const ordered=[];const map=new Map();scene.traverse(o=>{const s=o.userData.semantic;if(s&&!map.has(s)){map.set(s,o);ordered.push([s,o]);}});
@@ -65,18 +76,33 @@ for(const file of (await fs.readdir('public/models')).filter(f=>f.endsWith('.glb
    source.mixer.setTime(Math.max(0,Math.min(source.start+times[i],source.animations[0].duration-.000001)));source.scene.updateMatrixWorld(true);
    for(const [s,o]of ordered){
     const src=source.bones.get(s),correction=corrections.get(o);if(!src||!correction)continue;
-    const world=src.getWorldQuaternion(new T.Quaternion()).multiply(correction);
+    const world=src.getWorldQuaternion(new T.Quaternion()).premultiply(source.yaw).multiply(correction);
     const parent=o.parent.getWorldQuaternion(new T.Quaternion());o.quaternion.copy(parent.invert().multiply(world)).normalize();o.updateWorldMatrix(false,true);
     values.get(o).push(...o.quaternion.toArray());
    }
    const p=source.bones.get('pelvis').getWorldPosition(new T.Vector3());
    const drift=startHip.clone().lerp(endHip,i/(count-1));
-   const worldHip=hipRest.worldP.clone().add(new T.Vector3((p.x-drift.x)*scale,(p.y-source.rest.get('pelvis').p.y)*scale,(p.z-drift.z)*scale));
+   const worldHip=hipRest.worldP.clone().add(new T.Vector3((p.x-drift.x)*scale,(p.y-source.rest.get('pelvis').p.y)*scale,(p.z-drift.z)*scale).applyQuaternion(source.yaw));
+   if(contactAlignment[state]||['jab','cross','heavy'].includes(state)){worldHip.x=hipRest.worldP.x;worldHip.z=hipRest.worldP.z;}
    // Retain the fall's vertical root motion; remove locomotion's net travel.
    hip.position.copy(hip.parent.worldToLocal(worldHip));hips.push(...hip.position.toArray());
   }
   const tracks=[];for(const [,o]of ordered){const v=values.get(o);if(v.length===count*4)tracks.push(new T.QuaternionKeyframeTrack(o.name+'.quaternion',times,v));}
-  tracks.push(new T.VectorKeyframeTrack(hip.name+'.position',times,hips));clips.push(new T.AnimationClip(state,-1,tracks));
+  tracks.push(new T.VectorKeyframeTrack(hip.name+'.position',times,hips));
+  const clip=new T.AnimationClip(state,-1,tracks);
+  const align={kick:['foot_r',.427],backKick:['foot_r',.44],capoeira:['foot_l',.37],flyingKnee:['calf_r',.48],backfistL:['middle_01_l',.36],backfistR:['middle_01_r',.40],uppercut:['middle_01_r',.39]}[state];
+  if(align){
+   // Source proportions do not predict a retargeted limb's lane. Measure the
+   // actual target at contact, then turn its pelvis track into that lane.
+   const preview=new T.AnimationMixer(scene);preview.clipAction(clip).play();preview.setTime(clip.duration*align[1]);scene.updateMatrixWorld(true);
+   const contact=map.get(align[0]),delta=contact.getWorldPosition(new T.Vector3()).sub(hip.getWorldPosition(new T.Vector3()));
+   const turn=new T.Quaternion().setFromAxisAngle(new T.Vector3(0,1,0),-Math.atan2(delta.x,delta.z));
+   const parent=hip.parent.getWorldQuaternion(new T.Quaternion()),local=parent.clone().invert().multiply(turn).multiply(parent);
+   const track=tracks.find(t=>t.name===hip.name+'.quaternion');
+   for(let k=0;k<track.values.length;k+=4){const q=new T.Quaternion().fromArray(track.values,k).premultiply(local).normalize();q.toArray(track.values,k);}
+   preview.stopAllAction();preview.uncacheRoot(scene);
+  }
+  clips.push(clip);
  }
  scene.traverse(o=>{o.quaternion.copy(saved.get(o).q);o.position.copy(saved.get(o).p);});
  const selectedNodes=new Set(ordered.map(([,o])=>o));

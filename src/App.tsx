@@ -8,7 +8,7 @@ import {SettingsPanel} from './components/SettingsPanel';
 import {enterGameFullscreen,isGameFullscreen,toggleGameFullscreen} from './game/fullscreen';
 import {readSettings,saveSettings} from './game/settings';
 
-const INITIAL:GameView={stance:'stand',critical:false,energy:60,combo:'',player:100,enemy:100,timer:90,over:false,winner:null,status:'LOADING FIGHTERS',ready:false,failed:false,loaded:[false,false],names:['CAT GIRL','CUTE GIRL']};
+const INITIAL:GameView={countdown:3,resultReady:false,attackLabels:['JAB','CROSS','FRONT KICK','POWER KICK'],stance:'stand',critical:false,energy:60,combo:'',player:100,enemy:100,timer:90,over:false,winner:null,status:'LOADING FIGHTERS',ready:false,failed:false,loaded:[false,false],names:['CAT GIRL','CUTE GIRL']};
 export default function App(){
   const stageRef=useRef<HTMLDivElement>(null),gameRef=useRef<FightGame|null>(null);
   const [view,setView]=useState<GameView>(INITIAL);
@@ -41,6 +41,7 @@ export default function App(){
         </div>
       </header>
       <div className="arena-toolbar"><span>CELESTIAL SHRINE</span><div><button aria-label={fullscreen?'Exit fullscreen':'Enter fullscreen'} title="Fullscreen" onClick={()=>void toggleGameFullscreen()}>⛶</button><button aria-label={settings.musicEnabled?'Mute music':'Enable music'} onClick={()=>setSettings(s=>({...s,musicEnabled:!s.musicEnabled}))}>{settings.musicEnabled?'♫':'♫ OFF'}</button><button aria-label="Open settings" onClick={()=>setSettingsOpen(true)}>⚙ SETTINGS</button></div></div>
+      {started&&view.countdown>0&&<div className="round-countdown" role="status"><small>GET READY</small><b key={view.countdown}>{view.countdown}</b></div>}
       {view.combo&&<div className="combo-readout">{view.combo}</div>}
       <div className="fight-banner" key={`${view.status}-${started}`}>{view.status}</div>
       {!view.ready&&<div className="loading-overlay" role="status">
@@ -57,23 +58,23 @@ export default function App(){
         <button className="restart-button" onClick={startFight}>TAP TO FIGHT</button>
         <small>Fullscreen · Sound on</small>
       </div>}
-      {view.over&&<div className="result-overlay"><span className="result-kicker">MATCH COMPLETE</span>
+      {view.resultReady&&<div className="result-overlay"><span className="result-kicker">MATCH COMPLETE</span>
         <h1>{view.winner==='player'?'YOU WIN':view.winner==='enemy'?'KNOCKOUT':'DRAW'}</h1>
         <p>{view.winner==='player'?`${view.names[0]} takes the round.`:view.winner==='enemy'?`${view.names[1]} takes the round.`:'Nobody takes the round.'}</p>
         <button className="restart-button" onClick={()=>gameRef.current?.restart()}>FIGHT AGAIN ↻</button>
       </div>}
       <div className="mobile-controls">
-        <div className="left-controls"><Joystick onChange={setStick} disabled={!started||settingsOpen||view.over||!view.ready}/><div className="control-help">↑ JUMP · ↓ CROUCH</div></div>
-        <div className="right-controls">{ATTACK_BUTTONS.map(a=><button key={a.id} disabled={!started||settingsOpen||view.over||!view.ready} className={`attack-button attack-${a.id}`}
+        <div className="left-controls"><Joystick onChange={setStick} disabled={!started||settingsOpen||view.over||view.countdown>0||!view.ready}/><div className="control-help">↑ JUMP · ↓ CROUCH · HOLD AWAY GUARD</div></div>
+        <div className="right-controls">{ATTACK_BUTTONS.map((a,index)=><button key={a.id} disabled={!started||settingsOpen||view.over||view.countdown>0||!view.ready} className={`attack-button attack-${a.id}`}
           onPointerDown={e=>{e.preventDefault();attack(a.id);}}
           onContextMenu={e=>e.preventDefault()}
           aria-label={`${a.label} attack`}>
           <span className="attack-symbol">{a.symbol}</span>
-          <span>{a.id==='kick'||a.id==='heavy'?view.stance==='air'?'FLYING KICK':view.stance==='crouch'?'LOW SWEEP':a.label:a.label}</span>
+          <span>{view.attackLabels[index]}</span>
         </button>)}</div>
       </div>
       <div className="special-control">
-        <button className="burst-button" disabled={!started||settingsOpen||view.over||!view.ready||(!settings.infiniteEnergy&&view.energy<settings.specialCost)} onPointerDown={e=>{e.preventDefault();attack('special');}} aria-label="Celestial burst special attack"><span>✧</span><b>BURST</b><small>{settings.specialCost} KI</small></button>
+        <button className="burst-button" disabled={!started||settingsOpen||view.over||view.countdown>0||!view.ready||(!settings.infiniteEnergy&&view.energy<settings.specialCost)} onPointerDown={e=>{e.preventDefault();attack('special');}} aria-label="Celestial burst special attack"><span>✧</span><b>BURST</b><small>{settings.specialCost} KI</small></button>
         <div className="energy-track" role="progressbar" aria-label="Energy" aria-valuenow={view.energy} aria-valuemin={0} aria-valuemax={100}><i style={{width:`${view.energy}%`}}/></div><small>{view.energy} / 100 KI</small>
       </div>
       {settingsOpen&&<SettingsPanel value={settings} onChange={setSettings} onClose={()=>setSettingsOpen(false)}/>}

@@ -56,3 +56,23 @@ The CPU varies approach, pressure and retreat, leaves room after an attack and s
 On your phone, open the HTTPS game link in Chrome, wait for the fighters to load and tap **Tap to Fight**. That gesture requests real fullscreen with browser navigation hidden and unlocks sound. The match stays paused until you start. The toolbar fullscreen button can restore fullscreen after exiting.
 
 A fullscreen web-app manifest and home-screen icons are included for installation where supported. On iPhone, use the browser's Add to Home Screen option for an app-style launch. Browser fullscreen support varies; a refused request never prevents the game from starting. The service worker uses network-only navigation and stores no game assets, so it does not retain old builds. This is an online game, not an offline package.
+
+## Expanded combat controls
+
+All directions are relative to the opponent, including after changing sides.
+
+| Input | Move |
+| --- | --- |
+| A / B / X / Y | Jab / cross / front kick / power kick |
+| Toward + A / away + A | Right / left backfist |
+| Crouch + B | Rising uppercut |
+| Crouch + X or Y | Low sweep |
+| Air + X / air + Y | Flying kick / flying knee |
+| Toward + Y / away + Y | Capoeira / back kick |
+| Hold away without attacking | Both-arms high guard (chip damage; sweeps and burst bypass) |
+| Double flick toward / away | Advance / retreat dodge; brief evasion window |
+| A A B / A B X | Heartbreaker / Crimson Rush |
+
+Directional punches count as their base buttons for named combos. Landed three-hit chains with a finishing strike, named combos, charged bursts and heavy counters can launch. Ordinary isolated kicks and random criticals no longer cause flying reactions. Launches pull the camera back and show slow motion with past-position afterimages; the result waits for the finish to land. The three-second opening uses alternating taunts and the winner plays a victory clip. No damage or movement input is accepted during the countdown.
+
+Defaults now use the owner's supplied 0.53/0.65-second punches, 1.35 damage, 2.65 movement, moonlight, two toon bands and 5.9/0.5 outlines. Existing saved tuning remains; Restore defaults adopts these values. Fight Lab also exposes finisher slow-motion duration and camera pullback. `npm run bake:combat` regenerates all 25 clips on each real rig with no runtime retargeting.

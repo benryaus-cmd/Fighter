@@ -86,10 +86,10 @@ export async function loadGLBFighter(filename: string): Promise<FighterVisual> {
     const local=bone.parent.getWorldQuaternion(new THREE.Quaternion()).invert().multiply(world);bone.quaternion.slerp(local,weight);bone.updateWorldMatrix(false,true);
   };
   const contact=(id:import('./rules').AttackId)=>{
-    const key=id==='jab'?'middle_01_l':id==='cross'||id==='special'?'middle_01_r':'foot_r';
+    const key=id==='flyingKnee'?'calf_r':id==='capoeira'?'foot_l':['jab','backfistL'].includes(id)?'middle_01_l':['cross','special','backfistR','uppercut'].includes(id)?'middle_01_r':'foot_r';
     const bone=bones.get(key)??bones.get(id==='jab'?'hand_l':id==='cross'?'hand_r':'foot_r');return bone?bone.getWorldPosition(new THREE.Vector3()):null;
   };
-  const contactBase=(id:import('./rules').AttackId)=>['kick','heavy','sweep','flyingKick'].includes(id)?bones.get('calf_r')?.getWorldPosition(new THREE.Vector3())??null:null;
+  const contactBase=(id:import('./rules').AttackId)=>['kick','heavy','sweep','flyingKick','backKick','capoeira','flyingKnee'].includes(id)?bones.get(id==='capoeira'?'calf_l':id==='flyingKnee'?'thigh_r':'calf_r')?.getWorldPosition(new THREE.Vector3())??null:null;
   const targets=()=>{
     root.updateWorldMatrix(true,true);const result:import('./rules').HurtSphere[]=[];
     for(const [key,r,raise]of [['Head',.18,.10],['spine_03',.22,.02],['spine_02',.21,0],['pelvis',.21,0],['calf_l',.15,0],['calf_r',.15,0],['foot_l',.13,0],['foot_r',.13,0]] as const){const bone=bones.get(key);if(!bone)continue;const center=bone.getWorldPosition(new THREE.Vector3());center.y+=raise;result.push({center,radius:r*settings.hitboxScale});}
@@ -97,26 +97,29 @@ export async function loadGLBFighter(filename: string): Promise<FighterVisual> {
     return result;
   };
   const update=(dt:number,_elapsed:number,state:MoveState,phase:number)=>{
-    const next=state==='win'?'idle':state;
+    const next=state==='win'?'victory1':state;
     const repeated=next===active&&phase<oldPhase&&next in ATTACKS;
     if(active!==next||repeated){
       const previous=active?actions.get(active):undefined;
       const action=actions.get(next)??actions.get('idle')!;
       action.reset().setEffectiveWeight(1).setEffectiveTimeScale(1).play();
-      if(next in ATTACKS)action.paused=true;
+      if(next in ATTACKS||['guard','intro1','intro2','victory1','victory2','dodgeBack','dodgeIn'].includes(next))action.paused=true;
       if(previous&&previous!==action){previous.fadeOut(next==='hit'?.055:settings.transitionTime);action.fadeIn(next==='hit'?.055:settings.transitionTime);}
       active=next;reactionAge=0;
     }
     if(next in ATTACKS){const id=next as keyof typeof ATTACKS,spec=attackSpec(id,settings),action=actions.get(next)!;action.time=attackClipProgress(id,spec,phase*totalDuration(spec))*action.getClip().duration;}
+    if(['intro1','intro2','victory1','victory2','dodgeBack','dodgeIn'].includes(next)){const action=actions.get(next);if(action)action.time=Math.min(.999,phase)*action.getClip().duration;}
+    if(next==='guard'){const action=actions.get(next);if(action)action.time=action.getClip().duration*.43;}
     oldPhase=phase;reactionAge+=dt;
     // A short hit reaction is held until stun releases; KO clamps on its last pose.
     mixer.update(dt);body.position.y=baseY;
     if(next==='sweep'||next==='flyingKick'){
       const spec=attackSpec(next,settings),elapsed=phase*totalDuration(spec);
       const weight=elapsed<spec.windup?elapsed/spec.windup:elapsed<spec.windup+spec.active?1:1-(elapsed-spec.windup-spec.active)/spec.recovery;
-      const swing=next==='sweep'?THREE.MathUtils.clamp((elapsed-spec.windup)/spec.active,0,1)*1.1-.55:0;
-      aim('thigh_r','calf_r',new THREE.Vector3(Math.sin(swing)*.7,next==='sweep'?-.28:-.35,Math.cos(swing)),weight);
-      aim('calf_r','foot_r',new THREE.Vector3(Math.sin(swing)*.7,next==='sweep'?-.3:-.12,Math.cos(swing)),weight);
+      const swing=next==='sweep'?THREE.MathUtils.clamp((elapsed-spec.windup)/spec.active,0,1)*1.3-.65:0;
+      if(next==='sweep'){aim('spine_01','spine_02',new THREE.Vector3(0,1,.1),.65*weight);aim('spine_02','spine_03',new THREE.Vector3(0,1,.1),.4*weight);}
+      aim('thigh_r','calf_r',new THREE.Vector3(Math.sin(swing)*.7,next==='sweep'?-.10:-.35,Math.cos(swing)),weight);
+      aim('calf_r','foot_r',new THREE.Vector3(Math.sin(swing)*.7,next==='sweep'?-.12:-.12,Math.cos(swing)),weight);
       aim('foot_r','ball_r',new THREE.Vector3(Math.sin(swing),.02,Math.cos(swing)),weight);
     }
     root.updateWorldMatrix(true,true);
@@ -124,7 +127,8 @@ export async function loadGLBFighter(filename: string): Promise<FighterVisual> {
     if(next==='ko'){
       for(const bone of mapped){bone.getWorldPosition(point);root.worldToLocal(point);correction=Math.min(correction,point.y-.06);}
       if(correction<0)body.position.y-=correction;
-    }else{
+    }else if(!['jump','flyingKick','flyingKnee','flyback'].includes(next)){
+      if(next==='capoeira'){for(const side of ['l','r']){const hand=bones.get(`hand_${side}`);if(hand){hand.getWorldPosition(point);root.worldToLocal(point);correction=Math.min(correction,point.y-.04);}}}
       for(const foot of feet){foot.bone.getWorldPosition(point);root.worldToLocal(point);correction=Math.min(correction,point.y-foot.sole);}
       if(Number.isFinite(correction))body.position.y-=correction;
     }
